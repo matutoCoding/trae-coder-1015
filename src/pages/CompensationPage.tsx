@@ -49,12 +49,27 @@ const { Option } = Select
 const { Group: RadioGroup, Button: RadioButton } = Radio
 
 const CompensationPage: React.FC = () => {
-  const { torqueAnalysis, currentMainspring } = useAppStore()
+  const { torqueAnalysis, currentMainspring, compensationResult, setCompensationResult, clearCompensationResult, analysisTemperature } = useAppStore()
   const [form] = Form.useForm()
   const [compensationType, setCompensationType] = useState<'fusee' | 'constantForce' | 'remontoire'>('fusee')
-  const [compensationResult, setCompensationResult] = useState<CompensationResult | null>(null)
   const [showOriginal, setShowOriginal] = useState(true)
   const [showCompensated, setShowCompensated] = useState(true)
+  const [lastCalcSignature, setLastCalcSignature] = useState<string | null>(null)
+
+  const currentSignature = useMemo(() => {
+    if (!currentMainspring) return null
+    return [
+      currentMainspring.thickness,
+      currentMainspring.length,
+      currentMainspring.width,
+      currentMainspring.barrelInnerDiameter,
+      currentMainspring.arborDiameter,
+      currentMainspring.material.name,
+      analysisTemperature
+    ].join('|')
+  }, [currentMainspring, analysisTemperature])
+
+  const isStale = compensationResult !== null && lastCalcSignature !== null && lastCalcSignature !== currentSignature
 
   const handleCalculate = () => {
     if (!torqueAnalysis) return
@@ -70,6 +85,12 @@ const CompensationPage: React.FC = () => {
 
     const result = calculateFuseeCompensation(torqueAnalysis, params)
     setCompensationResult(result)
+    setLastCalcSignature(currentSignature)
+  }
+
+  const handleClear = () => {
+    clearCompensationResult()
+    setLastCalcSignature(null)
   }
 
   const chartData = useMemo(() => {
@@ -149,6 +170,23 @@ const CompensationPage: React.FC = () => {
         <ThunderboltOutlined className="mr-2" />
         均力装置补偿分析
       </Title>
+
+      {isStale && (
+        <Alert
+          message="当前补偿结果已过期"
+          description={
+            <Space>
+              <span>发条参数或温度已变化，当前补偿结果基于旧配置。请重新计算或清除。</span>
+              <Button size="small" type="primary" onClick={handleCalculate}>重新计算</Button>
+              <Button size="small" onClick={handleClear}>清除结果</Button>
+            </Space>
+          }
+          type="warning"
+          showIcon
+          closable
+          onClose={handleClear}
+        />
+      )}
 
       {!torqueAnalysis ? (
         <Alert
@@ -310,15 +348,29 @@ const CompensationPage: React.FC = () => {
                     </>
                   )}
 
-                  <Button
-                    type="primary"
-                    icon={<ExperimentOutlined />}
-                    onClick={handleCalculate}
-                    block
-                    size="large"
-                  >
-                    计算补偿效果
-                  </Button>
+                  <Row gutter={8}>
+                    <Col span={16}>
+                      <Button
+                        type="primary"
+                        icon={<ExperimentOutlined />}
+                        onClick={handleCalculate}
+                        block
+                        size="large"
+                      >
+                        计算补偿效果
+                      </Button>
+                    </Col>
+                    <Col span={8}>
+                      <Button
+                        onClick={handleClear}
+                        block
+                        size="large"
+                        disabled={!compensationResult}
+                      >
+                        清除结果
+                      </Button>
+                    </Col>
+                  </Row>
                 </Form>
               </Card>
             </Col>

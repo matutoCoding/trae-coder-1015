@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 
 interface ElectronAPI {
-  saveJson: (data: any, filename: string) => Promise<boolean>
-  loadJson: () => Promise<any>
-  showSaveDialog: (filename: string) => Promise<string | null>
+  saveJson: (filePath: string, data: unknown) => Promise<{ success: boolean; error?: string }>
+  loadJson: (filePath: string) => Promise<{ success: boolean; data?: unknown; error?: string }>
+  showSaveDialog: (defaultFilename: string) => Promise<string | null>
   showOpenDialog: () => Promise<string | null>
   getAppPath: () => Promise<string>
 }

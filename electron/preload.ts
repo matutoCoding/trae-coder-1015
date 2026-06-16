@@ -1,22 +1,22 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  saveJson: (filePath: string, data: unknown) => 
+  saveJson: (filePath: string, data: unknown) =>
     ipcRenderer.invoke('save-json', filePath, data),
-  loadJson: (filePath: string) => 
+  loadJson: (filePath: string) =>
     ipcRenderer.invoke('load-json', filePath),
-  showSaveDialog: (options: Electron.SaveDialogOptions) => 
-    ipcRenderer.invoke('show-save-dialog', options),
-  showOpenDialog: (options: Electron.OpenDialogOptions) => 
-    ipcRenderer.invoke('show-open-dialog', options),
+  showSaveDialog: (defaultFilename: string) =>
+    ipcRenderer.invoke('show-save-dialog', defaultFilename),
+  showOpenDialog: () =>
+    ipcRenderer.invoke('show-open-dialog'),
   getAppPath: () => ipcRenderer.invoke('get-app-path')
 })
 
 export type ElectronAPI = {
   saveJson: (filePath: string, data: unknown) => Promise<{ success: boolean; error?: string }>
   loadJson: (filePath: string) => Promise<{ success: boolean; data?: unknown; error?: string }>
-  showSaveDialog: (options: Electron.SaveDialogOptions) => Promise<Electron.SaveDialogReturnValue>
-  showOpenDialog: (options: Electron.OpenDialogOptions) => Promise<Electron.OpenDialogReturnValue>
+  showSaveDialog: (defaultFilename: string) => Promise<string | null>
+  showOpenDialog: () => Promise<string | null>
   getAppPath: () => Promise<string>
 }
 

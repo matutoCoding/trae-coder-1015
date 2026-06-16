@@ -1,4 +1,4 @@
-import { MainspringParams, TorqueAnalysisResult, MainspringMaterial } from '@/utils/mainspringPhysics'
+import { MainspringParams, TorqueAnalysisResult, MainspringMaterial, type CompensationResult } from '@/utils/mainspringPhysics'
 
 export interface MovementRecord {
   id: string
@@ -56,6 +56,7 @@ export interface SolutionLibraryItem {
 export interface AppState {
   currentMainspring: MainspringParams | null
   torqueAnalysis: TorqueAnalysisResult | null
+  compensationResult: CompensationResult | null
   movementRecords: MovementRecord[]
   solutionLibrary: SolutionLibraryItem[]
   selectedMovementId: string | null

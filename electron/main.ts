@@ -69,16 +69,30 @@ ipcMain.handle('load-json', async (_event: Electron.IpcMainInvokeEvent, filePath
   }
 })
 
-ipcMain.handle('show-save-dialog', async (_event: Electron.IpcMainInvokeEvent, options: Electron.SaveDialogOptions) => {
+ipcMain.handle('show-save-dialog', async (_event: Electron.IpcMainInvokeEvent, defaultFilename: string) => {
   void _event
-  const result = await dialog.showSaveDialog(mainWindow!, options)
-  return result
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    title: '保存文件',
+    defaultPath: defaultFilename || 'data.json',
+    filters: [{ name: 'JSON 文件', extensions: ['json'] }]
+  })
+  if (result.canceled || !result.filePath) {
+    return null
+  }
+  return result.filePath
 })
 
-ipcMain.handle('show-open-dialog', async (_event: Electron.IpcMainInvokeEvent, options: Electron.OpenDialogOptions) => {
+ipcMain.handle('show-open-dialog', async (_event: Electron.IpcMainInvokeEvent) => {
   void _event
-  const result = await dialog.showOpenDialog(mainWindow!, options)
-  return result
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    title: '选择文件',
+    filters: [{ name: 'JSON 文件', extensions: ['json'] }],
+    properties: ['openFile']
+  })
+  if (result.canceled || result.filePaths.length === 0) {
+    return null
+  }
+  return result.filePaths[0]
 })
 
 ipcMain.handle('get-app-path', () => {

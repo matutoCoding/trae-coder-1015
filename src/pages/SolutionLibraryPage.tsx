@@ -166,48 +166,97 @@ const SolutionLibraryPage: React.FC = () => {
 
   const handleExport = async (solution: SolutionLibraryItem) => {
     const result = await exportSolutionToJson(solution.id)
-    if (result) {
-      message.success(`方案已导出: ${result}`)
+    if (result.success && result.filePath) {
+      message.success(`方案已导出: ${result.filePath}`)
+    } else if (result.error) {
+      message.error('导出失败: ' + result.error)
     }
   }
 
   const validateSolutionData = (data: unknown): { valid: boolean; error?: string } => {
+    const isFiniteNumber = (v: unknown): v is number =>
+      typeof v === 'number' && !Number.isNaN(v) && Number.isFinite(v)
+    const isNonEmptyString = (v: unknown): v is string =>
+      typeof v === 'string' && v.trim().length > 0
+
     if (!data || typeof data !== 'object') {
       return { valid: false, error: '文件内容不是有效的 JSON 对象' }
     }
     const obj = data as Record<string, unknown>
-    const requiredTop = ['name', 'category', 'mainspringParams', 'expectedPerformance', 'barrelSpecs']
+
+    if (!isNonEmptyString(obj.name)) {
+      return { valid: false, error: '字段 name 必须是非空字符串' }
+    }
+    if (!isNonEmptyString(obj.category)) {
+      return { valid: false, error: '字段 category 必须是非空字符串' }
+    }
+
+    const requiredTop = ['mainspringParams', 'expectedPerformance', 'barrelSpecs']
     for (const k of requiredTop) {
-      if (!(k in obj) || obj[k] === null || obj[k] === undefined) {
-        return { valid: false, error: `缺少必需字段: ${k}` }
+      if (!(k in obj) || obj[k] === null || typeof obj[k] !== 'object') {
+        return { valid: false, error: `缺少必需对象字段: ${k}` }
       }
     }
+
     const mp = obj.mainspringParams as Record<string, unknown>
-    const requiredMp = ['thickness', 'length', 'width', 'barrelInnerDiameter', 'arborDiameter', 'material']
-    for (const k of requiredMp) {
-      if (!(k in mp) || typeof mp[k] !== 'number' && k !== 'material') {
-        if (k !== 'material') {
-          return { valid: false, error: `发条参数缺少或无效: ${k}` }
-        }
+    const requiredMpNumbers = [
+      { key: 'thickness', min: 1e-6, max: 0.01 },
+      { key: 'length', min: 1e-3, max: 5 },
+      { key: 'width', min: 1e-4, max: 0.1 },
+      { key: 'barrelInnerDiameter', min: 1e-3, max: 0.1 },
+      { key: 'arborDiameter', min: 1e-4, max: 0.05 }
+    ]
+    for (const { key, min, max } of requiredMpNumbers) {
+      const v = mp[key]
+      if (!isFiniteNumber(v)) {
+        return { valid: false, error: `发条参数 ${key} 必须是有效数值（当前为 ${typeof v}）` }
       }
-      if (k === 'material' && (!mp[k] || typeof mp[k] !== 'object')) {
-        return { valid: false, error: '发条参数缺少 material 信息' }
+      if (v <= min || v >= max) {
+        return { valid: false, error: `发条参数 ${key} = ${v} 超出合理范围` }
       }
     }
+    if (!mp.material || typeof mp.material !== 'object') {
+      return { valid: false, error: '发条参数缺少 material 信息' }
+    }
+    const mat = mp.material as Record<string, unknown>
+    if (!isNonEmptyString(mat.name)) {
+      return { valid: false, error: '发条 material.name 必须是非空字符串' }
+    }
+
     const ep = obj.expectedPerformance as Record<string, unknown>
-    const requiredEp = ['maxTorque', 'minTorque', 'averageTorque', 'torqueDropPercentage', 'powerReserveHours']
-    for (const k of requiredEp) {
-      if (!(k in ep) || typeof ep[k] !== 'number') {
-        return { valid: false, error: `性能参数缺少或无效: ${k}` }
+    const requiredEpNumbers = [
+      { key: 'maxTorque', min: 0, max: 1000 },
+      { key: 'minTorque', min: 0, max: 1000 },
+      { key: 'averageTorque', min: 0, max: 1000 },
+      { key: 'torqueDropPercentage', min: 0, max: 100 },
+      { key: 'powerReserveHours', min: 1, max: 5000 }
+    ]
+    for (const { key, min, max } of requiredEpNumbers) {
+      const v = ep[key]
+      if (!isFiniteNumber(v)) {
+        return { valid: false, error: `性能参数 ${key} 必须是有效数值（当前为 ${typeof v}）` }
+      }
+      if (v < min || v > max) {
+        return { valid: false, error: `性能参数 ${key} = ${v} 超出合理范围` }
       }
     }
+
     const bs = obj.barrelSpecs as Record<string, unknown>
-    const requiredBs = ['innerDiameter', 'arborDiameter', 'width']
-    for (const k of requiredBs) {
-      if (!(k in bs) || typeof bs[k] !== 'number') {
-        return { valid: false, error: `条盒参数缺少或无效: ${k}` }
+    const requiredBsNumbers = [
+      { key: 'innerDiameter', min: 1e-3, max: 0.1 },
+      { key: 'arborDiameter', min: 1e-4, max: 0.05 },
+      { key: 'width', min: 1e-4, max: 0.1 }
+    ]
+    for (const { key, min, max } of requiredBsNumbers) {
+      const v = bs[key]
+      if (!isFiniteNumber(v)) {
+        return { valid: false, error: `条盒参数 ${key} 必须是有效数值（当前为 ${typeof v}）` }
+      }
+      if (v < min || v > max) {
+        return { valid: false, error: `条盒参数 ${key} = ${v} 超出合理范围` }
       }
     }
+
     return { valid: true }
   }
 

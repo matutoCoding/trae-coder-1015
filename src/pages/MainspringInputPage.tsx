@@ -113,6 +113,13 @@ const MainspringInputPage: React.FC = () => {
     if (params) {
       setCurrentMainspring(params)
     }
+    const temp = allValues.temperature
+    if (temp !== null && temp !== undefined && !Number.isNaN(temp)) {
+      const newTemp = Number(temp)
+      if (newTemp !== analysisTemperature) {
+        setAnalysisTemperature(newTemp)
+      }
+    }
   }
 
   const handleReverseCalculate = () => {
@@ -394,7 +401,11 @@ const MainspringInputPage: React.FC = () => {
                       precision={0}
                       style={{ width: '100%' }}
                       addonAfter="°C"
-                      onChange={(value) => value && setAnalysisTemperature(value as number)}
+                      onChange={(value) => {
+                        if (value !== null && value !== undefined && !Number.isNaN(value)) {
+                          setAnalysisTemperature(Number(value))
+                        }
+                      }}
                     />
                   </Form.Item>
                 </Col>
