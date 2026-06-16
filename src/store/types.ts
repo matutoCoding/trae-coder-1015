@@ -57,6 +57,7 @@ export interface AppState {
   currentMainspring: MainspringParams | null
   torqueAnalysis: TorqueAnalysisResult | null
   compensationResult: CompensationResult | null
+  compensationSnapshot: string | null
   movementRecords: MovementRecord[]
   solutionLibrary: SolutionLibraryItem[]
   selectedMovementId: string | null

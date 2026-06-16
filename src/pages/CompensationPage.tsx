@@ -47,12 +47,19 @@ const { Title, Text } = Typography
 const { Group: RadioGroup, Button: RadioButton } = Radio
 
 const CompensationPage: React.FC = () => {
-  const { torqueAnalysis, currentMainspring, compensationResult, setCompensationResult, clearCompensationResult, analysisTemperature } = useAppStore()
+  const {
+    torqueAnalysis,
+    currentMainspring,
+    compensationResult,
+    setCompensationResult,
+    clearCompensationResult,
+    analysisTemperature,
+    compensationSnapshot
+  } = useAppStore()
   const [form] = Form.useForm()
   const [compensationType, setCompensationType] = useState<'fusee' | 'constantForce' | 'remontoire'>('fusee')
   const [showOriginal, setShowOriginal] = useState(true)
   const [showCompensated, setShowCompensated] = useState(true)
-  const [lastCalcSignature, setLastCalcSignature] = useState<string | null>(null)
 
   const currentSignature = useMemo(() => {
     if (!currentMainspring) return null
@@ -67,7 +74,8 @@ const CompensationPage: React.FC = () => {
     ].join('|')
   }, [currentMainspring, analysisTemperature])
 
-  const isStale = compensationResult !== null && lastCalcSignature !== null && lastCalcSignature !== currentSignature
+  const isStale = compensationResult !== null && compensationSnapshot !== null && compensationSnapshot !== currentSignature
+  const hasAnyResult = compensationResult !== null
 
   const handleCalculate = () => {
     if (!torqueAnalysis) return
@@ -82,13 +90,11 @@ const CompensationPage: React.FC = () => {
     }
 
     const result = calculateFuseeCompensation(torqueAnalysis, params)
-    setCompensationResult(result)
-    setLastCalcSignature(currentSignature)
+    setCompensationResult(result, currentSignature)
   }
 
   const handleClear = () => {
     clearCompensationResult()
-    setLastCalcSignature(null)
   }
 
   const chartData = useMemo(() => {
@@ -175,21 +181,27 @@ const CompensationPage: React.FC = () => {
             color="cyan"
             bordered
             style={{
-              backgroundColor: analysisTemperature === 0 ? '#fff1f0' : undefined,
+              backgroundColor: analysisTemperature === 0 ? '#fffbe6' : undefined,
               borderColor: analysisTemperature < 0 ? '#ff4d4f' : analysisTemperature === 0 ? '#faad14' : undefined,
               color: analysisTemperature < 0 ? '#cf1322' : analysisTemperature === 0 ? '#d48806' : undefined
             }}
           >
             当前分析温度: {analysisTemperature}°C
           </Tag>
-          {compensationResult && lastCalcSignature && (
+          {hasAnyResult && compensationSnapshot && (
             <>
               <Divider type="vertical" />
               {isStale ? (
-                <Tag color="warning">上次计算温度: 已过期（与当前温度不一致）</Tag>
+                <Tag color="warning">⚠ 补偿结果待重算（参数/温度已变化）</Tag>
               ) : (
-                <Tag color="green">结果温度匹配: {analysisTemperature}°C ✓</Tag>
+                <Tag color="green">✓ 补偿结果有效</Tag>
               )}
+            </>
+          )}
+          {hasAnyResult && !compensationSnapshot && (
+            <>
+              <Divider type="vertical" />
+              <Tag color="default">旧版结果（无快照，请重算）</Tag>
             </>
           )}
         </Space>
@@ -197,21 +209,22 @@ const CompensationPage: React.FC = () => {
 
       {isStale && (
         <Alert
-          message="当前补偿结果已过期"
+          message="补偿结果已过期，待重新计算"
           description={
-            <Space>
-              <span>
-                发条参数或温度已变化（当前 {analysisTemperature}°C），
-                当前补偿结果基于旧配置。请重新计算或清除。
-              </span>
-              <Button size="small" type="primary" onClick={handleCalculate}>重新计算</Button>
-              <Button size="small" onClick={handleClear}>清除结果</Button>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Text type="warning">
+                当前显示的补偿数据基于旧的发条参数或温度，图表和数值仅供对比参考，不作为当前配置的有效结果。
+              </Text>
+              <Space>
+                <Button size="small" type="primary" onClick={handleCalculate}>
+                  用当前配置重新计算
+                </Button>
+                <Button size="small" onClick={handleClear}>清除过期结果</Button>
+              </Space>
             </Space>
           }
           type="warning"
           showIcon
-          closable
-          onClose={handleClear}
         />
       )}
 
@@ -411,11 +424,42 @@ const CompensationPage: React.FC = () => {
                   </div>
                 </Card>
               ) : (
-                <div className="space-y-4">
+                <div
+                  className="space-y-4 relative"
+                  style={{
+                    opacity: isStale ? 0.65 : 1,
+                    transition: 'opacity 0.2s ease'
+                  }}
+                >
+                  {isStale && (
+                    <div
+                      style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 10,
+                        padding: '8px 16px',
+                        background: '#fff7e6',
+                        border: '1px solid #ffd591',
+                        borderRadius: 6,
+                        marginBottom: 4
+                      }}
+                    >
+                      <Space>
+                        <Tag color="warning" style={{ margin: 0 }}>⚠ 结果已过期</Tag>
+                        <Text type="warning" className="text-sm">
+                          参数已变更，下方为旧配置的补偿结果
+                        </Text>
+                        <Button size="small" type="primary" onClick={handleCalculate}>
+                          立即重算
+                        </Button>
+                      </Space>
+                    </div>
+                  )}
                   <Card
                     title={
                       <Space>
                         {getCompensationTypeName(compensationType)} 补偿效果对比
+                        {isStale && <Tag color="warning">已过期</Tag>}
                         <Button
                           size="small"
                           icon={<DownloadOutlined />}

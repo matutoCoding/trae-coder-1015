@@ -132,7 +132,7 @@ const MainLayout: React.FC = () => {
                 衰减: {torqueAnalysis.torqueDropPercentage.toFixed(0)}%
               </Tag>
               <Tag color="geekblue" style={{ opacity: 0.8 }}>
-                满弦力矩: {torqueAnalysis.maxTorque.toFixed(1)} mN·m
+                满弦力矩: {(torqueAnalysis.maxTorque * 1000).toFixed(2)} mN·m
               </Tag>
               {torqueAnalysis.escapementImpactRisk && (
                 <Badge status="error" text="力矩风险" />

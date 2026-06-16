@@ -33,7 +33,11 @@ interface AppStore extends AppState {
   exportSolutionToJson: (id: string) => Promise<{ success: boolean; error?: string; filePath?: string }>
   importSolutionFromJson: (data: unknown) => { success: boolean; error?: string }
   clearCompensationResult: () => void
-  setCompensationResult: (result: import('@/utils/mainspringPhysics').CompensationResult | null) => void
+  setCompensationResult: (
+    result: import('@/utils/mainspringPhysics').CompensationResult | null,
+    snapshot?: string | null
+  ) => void
+  compensationSnapshot: string | null
 }
 
 export const useAppStore = create<AppStore>()(
@@ -42,6 +46,7 @@ export const useAppStore = create<AppStore>()(
       currentMainspring: DEFAULT_MAINSPRING,
       torqueAnalysis: null,
       compensationResult: null,
+      compensationSnapshot: null,
       movementRecords: [],
       solutionLibrary: createDefaultSolutions(),
       selectedMovementId: null,
@@ -50,7 +55,7 @@ export const useAppStore = create<AppStore>()(
       currentPage: 'input',
 
       setCurrentMainspring: (params) => {
-        set({ currentMainspring: params, compensationResult: null })
+        set({ currentMainspring: params })
         const { analysisTemperature } = get()
         const analysis = calculateTorqueCurve(params, analysisTemperature)
         set({ torqueAnalysis: analysis })
@@ -63,14 +68,14 @@ export const useAppStore = create<AppStore>()(
         const temp = temperature ?? get().analysisTemperature
         if (currentMainspring) {
           const analysis = calculateTorqueCurve(currentMainspring, temp)
-          set({ torqueAnalysis: analysis, analysisTemperature: temp, compensationResult: null })
+          set({ torqueAnalysis: analysis, analysisTemperature: temp })
         }
       },
 
       setCurrentPage: (page) => set({ currentPage: page }),
 
       setAnalysisTemperature: (temp) => {
-        set({ analysisTemperature: temp, compensationResult: null })
+        set({ analysisTemperature: temp })
         const { currentMainspring } = get()
         if (currentMainspring) {
           const analysis = calculateTorqueCurve(currentMainspring, temp)
@@ -79,11 +84,15 @@ export const useAppStore = create<AppStore>()(
       },
 
       clearCompensationResult: () => {
-        set({ compensationResult: null })
+        set({ compensationResult: null, compensationSnapshot: null })
       },
 
-      setCompensationResult: (result) => {
-        set({ compensationResult: result })
+      setCompensationResult: (result, snapshot) => {
+        if (snapshot === undefined) {
+          set({ compensationResult: result })
+        } else {
+          set({ compensationResult: result, compensationSnapshot: snapshot })
+        }
       },
 
       addMovementRecord: (record) => {
@@ -319,7 +328,9 @@ export const useAppStore = create<AppStore>()(
         currentMainspring: state.currentMainspring,
         movementRecords: state.movementRecords,
         solutionLibrary: state.solutionLibrary,
-        analysisTemperature: state.analysisTemperature
+        analysisTemperature: state.analysisTemperature,
+        compensationResult: state.compensationResult,
+        compensationSnapshot: state.compensationSnapshot
       })
     }
   )
