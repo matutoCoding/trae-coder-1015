@@ -34,7 +34,8 @@ const MainLayout: React.FC = () => {
     movementRecords,
     solutionLibrary,
     torqueAnalysis,
-    analyzeCurrentMainspring
+    analyzeCurrentMainspring,
+    analysisTemperature
   } = useAppStore()
 
   useEffect(() => {
@@ -106,6 +107,17 @@ const MainLayout: React.FC = () => {
         </Space>
 
         <Space size="large">
+          <Tag
+            color="cyan"
+            bordered
+            style={{
+              backgroundColor: analysisTemperature === 0 ? '#fff1f0' : undefined,
+              borderColor: analysisTemperature < 0 ? '#ff4d4f' : analysisTemperature === 0 ? '#faad14' : undefined,
+              color: analysisTemperature < 0 ? '#cf1322' : analysisTemperature === 0 ? '#d48806' : undefined
+            }}
+          >
+            分析温度: {analysisTemperature}°C
+          </Tag>
           {torqueAnalysis && (
             <Space size="small">
               <Tag color="blue">
@@ -118,6 +130,9 @@ const MainLayout: React.FC = () => {
                 }
               >
                 衰减: {torqueAnalysis.torqueDropPercentage.toFixed(0)}%
+              </Tag>
+              <Tag color="geekblue" style={{ opacity: 0.8 }}>
+                满弦力矩: {torqueAnalysis.maxTorque.toFixed(1)} mN·m
               </Tag>
               {torqueAnalysis.escapementImpactRisk && (
                 <Badge status="error" text="力矩风险" />

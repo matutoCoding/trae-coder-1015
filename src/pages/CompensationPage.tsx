@@ -5,7 +5,6 @@ import {
   Col,
   Form,
   InputNumber,
-  Select,
   Slider,
   Statistic,
   Alert,
@@ -45,7 +44,6 @@ import {
 } from '@/utils/mainspringPhysics'
 
 const { Title, Text } = Typography
-const { Option } = Select
 const { Group: RadioGroup, Button: RadioButton } = Radio
 
 const CompensationPage: React.FC = () => {
@@ -166,17 +164,46 @@ const CompensationPage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <Title level={3} className="!mb-0">
-        <ThunderboltOutlined className="mr-2" />
-        均力装置补偿分析
-      </Title>
+      <Space className="w-full justify-between" align="center">
+        <Title level={3} className="!mb-0">
+          <ThunderboltOutlined className="mr-2" />
+          均力装置补偿分析
+        </Title>
+
+        <Space size="small">
+          <Tag
+            color="cyan"
+            bordered
+            style={{
+              backgroundColor: analysisTemperature === 0 ? '#fff1f0' : undefined,
+              borderColor: analysisTemperature < 0 ? '#ff4d4f' : analysisTemperature === 0 ? '#faad14' : undefined,
+              color: analysisTemperature < 0 ? '#cf1322' : analysisTemperature === 0 ? '#d48806' : undefined
+            }}
+          >
+            当前分析温度: {analysisTemperature}°C
+          </Tag>
+          {compensationResult && lastCalcSignature && (
+            <>
+              <Divider type="vertical" />
+              {isStale ? (
+                <Tag color="warning">上次计算温度: 已过期（与当前温度不一致）</Tag>
+              ) : (
+                <Tag color="green">结果温度匹配: {analysisTemperature}°C ✓</Tag>
+              )}
+            </>
+          )}
+        </Space>
+      </Space>
 
       {isStale && (
         <Alert
           message="当前补偿结果已过期"
           description={
             <Space>
-              <span>发条参数或温度已变化，当前补偿结果基于旧配置。请重新计算或清除。</span>
+              <span>
+                发条参数或温度已变化（当前 {analysisTemperature}°C），
+                当前补偿结果基于旧配置。请重新计算或清除。
+              </span>
               <Button size="small" type="primary" onClick={handleCalculate}>重新计算</Button>
               <Button size="small" onClick={handleClear}>清除结果</Button>
             </Space>

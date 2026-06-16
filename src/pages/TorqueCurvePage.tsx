@@ -10,7 +10,6 @@ import {
   Tabs,
   Space,
   Button,
-  Slider,
   Divider,
   Table,
   Tooltip,
