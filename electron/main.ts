@@ -46,7 +46,8 @@ app.on('window-all-closed', () => {
   }
 })
 
-ipcMain.handle('save-json', async (_event, filePath: string, data: unknown) => {
+ipcMain.handle('save-json', async (_event: Electron.IpcMainInvokeEvent, filePath: string, data: unknown) => {
+  void _event
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
     return { success: true }
@@ -55,7 +56,8 @@ ipcMain.handle('save-json', async (_event, filePath: string, data: unknown) => {
   }
 })
 
-ipcMain.handle('load-json', async (_event, filePath: string) => {
+ipcMain.handle('load-json', async (_event: Electron.IpcMainInvokeEvent, filePath: string) => {
+  void _event
   try {
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, 'utf-8')
@@ -67,12 +69,14 @@ ipcMain.handle('load-json', async (_event, filePath: string) => {
   }
 })
 
-ipcMain.handle('show-save-dialog', async (_event, options: Electron.SaveDialogOptions) => {
+ipcMain.handle('show-save-dialog', async (_event: Electron.IpcMainInvokeEvent, options: Electron.SaveDialogOptions) => {
+  void _event
   const result = await dialog.showSaveDialog(mainWindow!, options)
   return result
 })
 
-ipcMain.handle('show-open-dialog', async (_event, options: Electron.OpenDialogOptions) => {
+ipcMain.handle('show-open-dialog', async (_event: Electron.IpcMainInvokeEvent, options: Electron.OpenDialogOptions) => {
+  void _event
   const result = await dialog.showOpenDialog(mainWindow!, options)
   return result
 })

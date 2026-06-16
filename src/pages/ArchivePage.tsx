@@ -27,7 +27,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  SaveOutlined,
   LoadOutlined,
   ClockCircleOutlined,
   ExperimentOutlined,

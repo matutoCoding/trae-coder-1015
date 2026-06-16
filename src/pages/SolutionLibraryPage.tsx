@@ -14,7 +14,6 @@ import {
   Select,
   InputNumber,
   Divider,
-  List,
   Alert,
   Empty,
   Popconfirm,
@@ -32,7 +31,6 @@ import {
   ExportOutlined,
   ImportOutlined,
   ClockCircleOutlined,
-  ThunderboltOutlined,
   DatabaseOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons'
@@ -43,7 +41,6 @@ import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 const { Option } = Select
-const { TabPane } = Tabs
 
 const SolutionLibraryPage: React.FC = () => {
   const {
@@ -174,19 +171,67 @@ const SolutionLibraryPage: React.FC = () => {
     }
   }
 
-  const handleImport = async () => {
-    if (window.electronAPI) {
-      const result = await window.electronAPI.showOpenDialog({
-        title: '导入方案',
-        filters: [{ name: 'JSON 文件', extensions: ['json'] }],
-        properties: ['openFile']
-      })
+  const validateSolutionData = (data: unknown): { valid: boolean; error?: string } => {
+    if (!data || typeof data !== 'object') {
+      return { valid: false, error: '文件内容不是有效的 JSON 对象' }
+    }
+    const obj = data as Record<string, unknown>
+    const requiredTop = ['name', 'category', 'mainspringParams', 'expectedPerformance', 'barrelSpecs']
+    for (const k of requiredTop) {
+      if (!(k in obj) || obj[k] === null || obj[k] === undefined) {
+        return { valid: false, error: `缺少必需字段: ${k}` }
+      }
+    }
+    const mp = obj.mainspringParams as Record<string, unknown>
+    const requiredMp = ['thickness', 'length', 'width', 'barrelInnerDiameter', 'arborDiameter', 'material']
+    for (const k of requiredMp) {
+      if (!(k in mp) || typeof mp[k] !== 'number' && k !== 'material') {
+        if (k !== 'material') {
+          return { valid: false, error: `发条参数缺少或无效: ${k}` }
+        }
+      }
+      if (k === 'material' && (!mp[k] || typeof mp[k] !== 'object')) {
+        return { valid: false, error: '发条参数缺少 material 信息' }
+      }
+    }
+    const ep = obj.expectedPerformance as Record<string, unknown>
+    const requiredEp = ['maxTorque', 'minTorque', 'averageTorque', 'torqueDropPercentage', 'powerReserveHours']
+    for (const k of requiredEp) {
+      if (!(k in ep) || typeof ep[k] !== 'number') {
+        return { valid: false, error: `性能参数缺少或无效: ${k}` }
+      }
+    }
+    const bs = obj.barrelSpecs as Record<string, unknown>
+    const requiredBs = ['innerDiameter', 'arborDiameter', 'width']
+    for (const k of requiredBs) {
+      if (!(k in bs) || typeof bs[k] !== 'number') {
+        return { valid: false, error: `条盒参数缺少或无效: ${k}` }
+      }
+    }
+    return { valid: true }
+  }
 
-      if (!result.canceled && result.filePaths[0]) {
-        const loadResult = await window.electronAPI.loadJson(result.filePaths[0])
+  const handleImport = async () => {
+    const doImport = (data: unknown) => {
+      const validation = validateSolutionData(data)
+      if (!validation.valid) {
+        message.error('导入失败: ' + validation.error)
+        return
+      }
+      const result = importSolutionFromJson(data)
+      if (result.success) {
+        message.success('方案导入成功')
+      } else {
+        message.error('导入失败: ' + (result.error || '未知错误'))
+      }
+    }
+
+    if (window.electronAPI) {
+      const filePath = await window.electronAPI.showOpenDialog()
+      if (filePath) {
+        const loadResult = await window.electronAPI.loadJson(filePath)
         if (loadResult.success && loadResult.data) {
-          importSolutionFromJson(loadResult.data as SolutionLibraryItem)
-          message.success('方案导入成功')
+          doImport(loadResult.data)
         } else {
           message.error('导入失败: ' + loadResult.error)
         }
@@ -202,10 +247,9 @@ const SolutionLibraryPage: React.FC = () => {
           reader.onload = (event) => {
             try {
               const data = JSON.parse(event.target?.result as string)
-              importSolutionFromJson(data)
-              message.success('方案导入成功')
+              doImport(data)
             } catch {
-              message.error('文件格式错误')
+              message.error('文件格式错误，请检查 JSON 语法')
             }
           }
           reader.readAsText(file)
@@ -739,32 +783,40 @@ const SolutionLibraryPage: React.FC = () => {
             />
           </Form.Item>
 
-          {torqueAnalysis && (
+          {currentMainspring && torqueAnalysis && (
             <Alert
-              message="将保存当前发条配置"
+              message={
+                <Space>
+                  将保存当前发条配置
+                  {torqueAnalysis.geometry.hasStackingRisk && (
+                    <Tag color="warning" style={{ marginLeft: 8 }}>
+                      注意：当前配置存在堆叠风险
+                    </Tag>
+                  )}
+                </Space>
+              }
               description={
                 <div className="text-xs">
-                  <p>发条: {formatThickness(torqueAnalysis.geometry.hasStackingRisk ? 0 : (() => {
-                    const state = useAppStore.getState()
-                    return state.currentMainspring?.thickness || 0
-                  })())}mm × {formatLength((() => {
-                    const state = useAppStore.getState()
-                    return state.currentMainspring?.length || 0
-                  })())}mm × {formatDiameter((() => {
-                    const state = useAppStore.getState()
-                    return state.currentMainspring?.width || 0
-                  })())}mm</p>
-                  <p>条盒: 内径 {formatDiameter((() => {
-                    const state = useAppStore.getState()
-                    return state.currentMainspring?.barrelInnerDiameter || 0
-                  })())}mm, 轴径 {formatDiameter((() => {
-                    const state = useAppStore.getState()
-                    return state.currentMainspring?.arborDiameter || 0
-                  })())}mm</p>
-                  <p>估算动储: {Math.round(torqueAnalysis.powerReserveHours)} 小时</p>
+                  <p>
+                    发条: {formatThickness(currentMainspring.thickness)}mm × {formatLength(currentMainspring.length)}mm × {formatDiameter(currentMainspring.width)}mm
+                  </p>
+                  <p>
+                    条盒: 内径 {formatDiameter(currentMainspring.barrelInnerDiameter)}mm, 轴径 {formatDiameter(currentMainspring.arborDiameter)}mm
+                  </p>
+                  <p>
+                    材料: {currentMainspring.material.name}
+                  </p>
+                  <p>
+                    估算动储: {Math.round(torqueAnalysis.powerReserveHours)} 小时
+                    {torqueAnalysis.geometry.hasStackingRisk && (
+                      <span className="text-orange-600 ml-2">
+                        （注：因堆叠风险实际可用动储可能缩短）
+                      </span>
+                    )}
+                  </p>
                 </div>
               }
-              type="info"
+              type={torqueAnalysis.geometry.hasStackingRisk ? 'warning' : 'info'}
               showIcon
             />
           )}

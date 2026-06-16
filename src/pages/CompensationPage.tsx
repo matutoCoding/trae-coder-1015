@@ -27,8 +27,6 @@ import {
   DownloadOutlined
 } from '@ant-design/icons'
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -91,8 +89,8 @@ const CompensationPage: React.FC = () => {
     })
   }, [compensationResult])
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ payload: any }>; label?: number }) => {
+    if (active && payload && payload.length && label !== undefined) {
       const data = payload[0].payload
       return (
         <div className="bg-white p-3 border rounded-lg shadow-lg">

@@ -11,8 +11,7 @@ import {
 import {
   MainspringParams,
   TorqueAnalysisResult,
-  calculateTorqueCurve,
-  MATERIALS
+  calculateTorqueCurve
 } from '@/utils/mainspringPhysics'
 
 interface AppStore extends AppState {
@@ -32,7 +31,7 @@ interface AppStore extends AppState {
   loadMovementFromArchive: (id: string) => void
   loadSolutionFromLibrary: (id: string) => void
   exportSolutionToJson: (id: string) => Promise<string | null>
-  importSolutionFromJson: (data: SolutionLibraryItem) => void
+  importSolutionFromJson: (data: unknown) => { success: boolean; error?: string }
 }
 
 export const useAppStore = create<AppStore>()(
@@ -164,34 +163,79 @@ export const useAppStore = create<AppStore>()(
         if (!solution) return null
 
         if (window.electronAPI) {
-          const result = await window.electronAPI.showSaveDialog({
-            title: '导出方案',
-            defaultPath: `${solution.name}.json`,
-            filters: [{ name: 'JSON 文件', extensions: ['json'] }]
-          })
-          if (!result.canceled && result.filePath) {
-            await window.electronAPI.saveJson(result.filePath, solution)
-            return result.filePath
+          const filePath = await window.electronAPI.showSaveDialog(`${solution.name}.json`)
+          if (filePath) {
+            await window.electronAPI.saveJson(filePath, solution)
+            return filePath
           }
         }
         return JSON.stringify(solution, null, 2)
       },
 
       importSolutionFromJson: (data) => {
+        if (!data || typeof data !== 'object') {
+          return { success: false, error: '数据不是有效对象' }
+        }
+        const obj = data as Record<string, unknown>
+        const requiredTop = ['name', 'category', 'mainspringParams', 'expectedPerformance', 'barrelSpecs']
+        for (const k of requiredTop) {
+          if (!(k in obj) || obj[k] === null || obj[k] === undefined) {
+            return { success: false, error: `缺少必需字段: ${k}` }
+          }
+        }
+        const mp = obj.mainspringParams as Record<string, unknown>
+        const requiredMp = ['thickness', 'length', 'width', 'barrelInnerDiameter', 'arborDiameter', 'material']
+        for (const k of requiredMp) {
+          if (!(k in mp)) {
+            return { success: false, error: `发条参数缺少字段: ${k}` }
+          }
+          if (k !== 'material' && typeof mp[k] !== 'number') {
+            return { success: false, error: `发条参数 ${k} 不是数值` }
+          }
+        }
+        if (!mp.material || typeof mp.material !== 'object') {
+          return { success: false, error: '发条参数缺少 material' }
+        }
+        const ep = obj.expectedPerformance as Record<string, unknown>
+        const requiredEp = ['maxTorque', 'minTorque', 'averageTorque', 'torqueDropPercentage', 'powerReserveHours']
+        for (const k of requiredEp) {
+          if (!(k in ep) || typeof ep[k] !== 'number') {
+            return { success: false, error: `性能参数缺少或无效: ${k}` }
+          }
+        }
+        const bs = obj.barrelSpecs as Record<string, unknown>
+        const requiredBs = ['innerDiameter', 'arborDiameter', 'width']
+        for (const k of requiredBs) {
+          if (!(k in bs) || typeof bs[k] !== 'number') {
+            return { success: false, error: `条盒参数缺少或无效: ${k}` }
+          }
+        }
+
         const existingIds = get().solutionLibrary.map((s) => s.id)
-        const newId = existingIds.includes(data.id) ? generateId() : data.id
-        
+        const rawItem = data as SolutionLibraryItem
+        const newId = rawItem.id && !existingIds.includes(rawItem.id) ? rawItem.id : generateId()
+
         const newItem: SolutionLibraryItem = {
-          ...data,
           id: newId,
+          name: rawItem.name,
+          category: rawItem.category,
+          powerReserveLevel: rawItem.powerReserveLevel || `${Math.round(ep.powerReserveHours as number)}h`,
+          targetPowerReserve: typeof rawItem.targetPowerReserve === 'number' ? rawItem.targetPowerReserve : (ep.powerReserveHours as number),
+          mainspringParams: rawItem.mainspringParams,
+          expectedPerformance: rawItem.expectedPerformance,
+          barrelSpecs: rawItem.barrelSpecs,
+          recommendedMovements: Array.isArray(rawItem.recommendedMovements) ? rawItem.recommendedMovements : [],
+          material: typeof rawItem.material === 'string' ? rawItem.material : 'Nivaflex',
+          notes: typeof rawItem.notes === 'string' ? rawItem.notes : '',
           isCustom: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         }
-        
+
         set((state) => ({
           solutionLibrary: [...state.solutionLibrary, newItem]
         }))
+        return { success: true }
       }
     }),
     {

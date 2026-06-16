@@ -46,8 +46,7 @@ import {
 import { useAppStore } from '@/store/useAppStore'
 import {
   calculateTemperatureInfluence,
-  TorquePoint,
-  TemperatureAnalysisResult
+  type TemperatureAnalysisResult
 } from '@/utils/mainspringPhysics'
 
 const { Title, Text } = Typography
@@ -83,8 +82,8 @@ const TorqueCurvePage: React.FC = () => {
     })
   }, [torqueAnalysis, showWarningZones, showDangerZones])
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ payload: any }>; label?: number }) => {
+    if (active && payload && payload.length && label !== undefined) {
       const data = payload[0].payload
       return (
         <div className="bg-white p-3 border rounded-lg shadow-lg">

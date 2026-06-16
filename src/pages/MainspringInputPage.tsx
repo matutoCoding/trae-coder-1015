@@ -27,13 +27,12 @@ import {
 import { useAppStore } from '@/store/useAppStore'
 import {
   MATERIALS,
-  calculateTorqueCurve,
   calculateWindingGeometry,
   reverseCalculateMainspring,
-  ReverseCalculationResult
+  type ReverseCalculationResult
 } from '@/utils/mainspringPhysics'
 import { DEFAULT_MAINSPRING } from '@/store/types'
-import type { MainspringParams, MainspringMaterial } from '@/utils/mainspringPhysics'
+import type { MainspringParams } from '@/utils/mainspringPhysics'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -52,12 +51,48 @@ const MainspringInputPage: React.FC = () => {
 
   const [showReverseCalc, setShowReverseCalc] = useState(false)
   const [reverseResults, setReverseResults] = useState<ReverseCalculationResult[]>([])
-  const [selectedMaterial, setSelectedMaterial] = useState<string>('Nivaflex')
+  const [selectedMaterial, setSelectedMaterial] = useState<string>(
+    currentMainspring?.material?.name?.includes('Nivaflex') ? 'Nivaflex' : 'Nivaflex'
+  )
 
   const geometry = useMemo(() => {
     if (!currentMainspring) return null
     return calculateWindingGeometry(currentMainspring)
   }, [currentMainspring])
+
+  const buildMainspringParams = (formValues: any, materialKey: string): MainspringParams | null => {
+    const material = MATERIALS[materialKey]
+    if (!material) return null
+
+    const thickness = formValues.thickness
+    const length = formValues.length
+    const width = formValues.width
+    const barrelInnerDiameter = formValues.barrelInnerDiameter
+    const arborDiameter = formValues.arborDiameter
+    const elasticModulus = formValues.elasticModulus ?? material.elasticModulus20C
+    const yieldStrength = formValues.yieldStrength ?? material.maxAllowableStress
+
+    if (
+      thickness === undefined || thickness === null || Number.isNaN(thickness) ||
+      length === undefined || length === null || Number.isNaN(length) ||
+      width === undefined || width === null || Number.isNaN(width) ||
+      barrelInnerDiameter === undefined || barrelInnerDiameter === null || Number.isNaN(barrelInnerDiameter) ||
+      arborDiameter === undefined || arborDiameter === null || Number.isNaN(arborDiameter)
+    ) {
+      return null
+    }
+
+    return {
+      thickness: thickness * 1e-3,
+      length: length * 1e-3,
+      width: width * 1e-3,
+      barrelInnerDiameter: barrelInnerDiameter * 1e-3,
+      arborDiameter: arborDiameter * 1e-3,
+      elasticModulus,
+      yieldStrength,
+      material
+    }
+  }
 
   const handleMaterialChange = (value: string) => {
     setSelectedMaterial(value)
@@ -66,24 +101,18 @@ const MainspringInputPage: React.FC = () => {
       elasticModulus: material.elasticModulus20C,
       yieldStrength: material.maxAllowableStress
     })
+    const values = form.getFieldsValue()
+    const params = buildMainspringParams({ ...values, elasticModulus: material.elasticModulus20C, yieldStrength: material.maxAllowableStress }, value)
+    if (params) {
+      setCurrentMainspring(params)
+    }
   }
 
-  const handleFormChange = () => {
-    const values = form.getFieldsValue()
-    const material = MATERIALS[selectedMaterial]
-
-    const params: MainspringParams = {
-      thickness: values.thickness * 1e-3,
-      length: values.length * 1e-3,
-      width: values.width * 1e-3,
-      barrelInnerDiameter: values.barrelInnerDiameter * 1e-3,
-      arborDiameter: values.arborDiameter * 1e-3,
-      elasticModulus: values.elasticModulus,
-      yieldStrength: values.yieldStrength,
-      material
+  const handleFormChange = (_: any, allValues: any) => {
+    const params = buildMainspringParams(allValues, selectedMaterial)
+    if (params) {
+      setCurrentMainspring(params)
     }
-
-    setCurrentMainspring(params)
   }
 
   const handleReverseCalculate = () => {
